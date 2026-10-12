@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="theme-color" content="#0A0A0A">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NorthStar-ClearGate — Intelligent Hiring</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="config.js"></script>
+  <script src="script.js" defer></script>
+
+</head>
+
+<body>
+
+  <div id="loading-screen">
+    <div class="loader-count" id="loader-count">0</div>
+    <div class="loader-text">Loading Experience</div>
+  </div>
+
+  <div id="portal-chooser" class="hidden">
+
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+
+    <div class="h-header">
+      <div class="h-brand">NORTHSTAR<span>·</span>CLEARGATE</div>
+      <div class="h-meta">Vol. 1 — 2026<br>Unbiased AI Hiring</div>
+    </div>
+
+    <div class="h-hero">
+      <h1 class="h-title-main">
+        Intelligent<br>
+        <span class="h-title-outline">Screening</span>
+      </h1>
+    </div>
+
+    <div class="h-options">
+      <div class="h-portal-item" onclick="showScreen('company-auth'); setCompanyAuthMode('login')">
+        <div class="h-num">01 // ADMIN</div>
+        <div class="h-title">Company</div>
+        <div class="h-desc">Create precise role blueprints and evaluate candidates transparently.</div>
+      </div>
+      <div class="h-portal-item" onclick="showScreen('applicant-auth'); setApplicantAuthMode('login')">
+        <div class="h-num">02 // USER</div>
+        <div class="h-title">Applicant</div>
+        <div class="h-desc">Submit your resume, predict match scores, and track applications.</div>
+      </div>
+    </div>
+
+    <div class="marquee-container">
+      <div class="marquee">
+        EVALUATE ON MERIT — NO BLACK BOXES — love from india —
+        EVALUATE ON MERIT — NO BLACK BOXES — FROM INDIA WITH LOVE —
+      </div>
+    </div>
+  </div>
+
+  <div id="company-auth" class="auth-shell hidden">
+    <div class="auth-panel-left company-side">
+      <div>
+        <div class="apl-brand">northstar<span>·</span>cleargate</div>
+        <div class="apl-back" onclick="showScreen('portal-chooser')">← Return to Home</div>
+      </div>
+      <div class="apl-context">
+        <div class="apl-context-badge">🏢 Company Portal</div>
+        <div class="apl-context-title">HR &amp;<br>Talent Teams</div>
+        <div style="font-size:14px; opacity:0.8; line-height: 1.6;">Run unbiased AI screenings and construct detailed
+          role blueprints.</div>
+      </div>
+      <div style="font-family:var(--font-mono); font-size:10px; opacity:0.5;">Secure Admin Access</div>
+    </div>
+    <div class="auth-panel-right" id="company-auth-right"></div>
+  </div>
+
+  <div id="company-onboard" class="auth-shell hidden">
+    <div class="auth-panel-left company-side">
+      <div>
+        <div class="apl-brand">northstar<span>·</span>cleargate</div>
+      </div>
+      <div class="apl-context">
+        <div class="apl-context-badge">🏢 Registration</div>
+        <div class="apl-context-title">Set up your<br>organization</div>
+      </div>
+      <div></div>
+    </div>
+    <div class="auth-panel-right">
+      <div class="form-section-title">Company Profile</div>
+      <div class="form-section-sub">Required to activate your HR dashboard</div>
+      <div class="form-field"><label class="form-label">Company Name<span>*</span></label><input class="form-input"
+          id="co-company-name"></div>
+      <div class="form-field"><label class="form-label">Your Name<span>*</span></label><input class="form-input"
+          id="co-contact-name"></div>
+      <div class="form-field"><label class="form-label">Work Email<span>*</span></label><input class="form-input"
+          id="co-email" type="email" disabled style="background:var(--border); cursor:not-allowed;"></div>
+      <button class="btn-primary accent" id="btn-co-onboard-submit" style="margin-top:16px">Complete Setup →</button>
+    </div>
+  </div>
+
+  <div id="applicant-auth" class="auth-shell hidden">
+    <div class="auth-panel-left applicant-side">
+      <div>
+        <div class="apl-brand">northstar<span>·</span>cleargate</div>
+        <div class="apl-back" onclick="showScreen('portal-chooser')">← Return to Home</div>
+      </div>
+      <div class="apl-context">
+        <div class="apl-context-badge" style="color:var(--accent-blue)">👤 Applicant Portal</div>
+        <div class="apl-context-title">Apply with<br>confidence.</div>
+        <div style="font-size:14px; opacity:0.8; line-height: 1.6;">Every application is evaluated on pure merit,
+          skills, and verified experience.</div>
+      </div>
+      <div style="font-family:var(--font-mono); font-size:10px; opacity:0.5;">Candidate Access</div>
+    </div>
+    <div class="auth-panel-right" id="applicant-auth-right"></div>
+  </div>
+
+  <div id="applicant-onboard" class="auth-shell hidden">
+    <div class="auth-panel-left applicant-side">
+      <div>
+        <div class="apl-brand">northstar<span>·</span>cleargate</div>
+      </div>
+      <div class="apl-context">
+        <div class="apl-context-badge" style="color:var(--accent-blue)">👤 Registration</div>
+        <div class="apl-context-title">Build your<br>profile</div>
+      </div>
+      <div></div>
+    </div>
+    <div class="auth-panel-right">
+      <div class="form-section-title">Your Details</div>
+      <div class="form-section-sub">Required to establish your candidate identity</div>
+      <div class="form-row">
+        <div class="form-field"><label class="form-label">First Name<span>*</span></label><input class="form-input"
+            id="ap-fname"></div>
+        <div class="form-field"><label class="form-label">Last Name<span>*</span></label><input class="form-input"
+            id="ap-lname"></div>
+      </div>
+      <div class="form-field"><label class="form-label">Email<span>*</span></label><input class="form-input"
+          id="ap-email" type="email" disabled style="background:var(--border); cursor:not-allowed;"></div>
+      <button class="btn-primary blue" id="btn-ap-onboard-submit" style="margin-top:16px">Complete Registration
+        →</button>
+    </div>
+  </div>
+
+  <div id="company-app" class="hidden">
+    <nav class="sidebar">
+      <div style="padding: 24px 20px; border-bottom: 1px solid var(--border);">
+        <div
+          style="font-family: var(--font-sans); font-weight: 800; font-size: 20px; text-transform: uppercase; letter-spacing: -0.05em;">
+          northstar<span style="color:var(--accent2)">·</span></div>
+        <div style="font-family: var(--font-mono); font-size: 11px; color: var(--ink3); margin-top: 4px;"
+          id="sidebar-co-name">Company</div>
+      </div>
+      <div style="padding: 20px 0; flex: 1;">
+        <div
+          style="font-family:var(--font-mono); font-size:10px; text-transform:uppercase; color:var(--ink3); padding:0 20px; margin-bottom:8px; letter-spacing:0.1em; font-weight:600;">
+          Workspace</div>
+        <div class="nav-item active" data-page="dashboard">Dashboard Overview</div>
+        <div class="nav-item" data-page="blueprints">Role Blueprints</div>
+        <div class="nav-item" data-page="create-bp" style="color: var(--accent2); font-weight:700;">+ Create New Role
+        </div>
+
+        <div
+          style="font-family:var(--font-mono); font-size:10px; text-transform:uppercase; color:var(--ink3); padding:0 20px; margin:24px 0 8px; letter-spacing:0.1em; font-weight:600;">
+          Evaluation</div>
+        <div class="nav-item" data-page="results">Applicant Rankings</div>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <div class="topbar">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <button class="btn-nav-outline" onclick="showPage('dashboard')" id="co-back-btn" style="display:none;">←
+            Back</button>
+          <div
+            style="font-family: var(--font-sans); font-weight:800; font-size: 24px; text-transform:uppercase; letter-spacing:-0.02em;"
+            id="co-page-title">Dashboard</div>
+        </div>
+        <button class="btn-nav-outline" id="btn-company-logout">⌂ Home Portal</button>
+      </div>
+
+      <div class="page active" id="page-dashboard">
+        <div class="stat-grid">
+          <div class="stat-box">
+            <div class="lbl">Total Applicants</div>
+            <div class="num" id="stat-total">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="lbl">Passed AI Filter</div>
+            <div class="num" id="stat-passed" style="color:var(--pass)">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="lbl">Offers Published</div>
+            <div class="num" id="stat-published" style="color:var(--accent-blue)">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="lbl">Active Roles</div>
+            <div class="num" id="stat-bps">0</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"
+            style="font-family:var(--font-sans); font-weight:800; font-size:20px; margin-bottom:16px;">Top Ranked
+            Candidates</div>
+          <div id="recent-screenings-list" class="empty-state">No applicant screenings exist. Waiting for candidates to
+            apply.</div>
+        </div>
+      </div>
+
+      <div class="page" id="page-blueprints">
+        <div id="blueprint-grid"
+          style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;"></div>
+        <div id="bp-empty-state" class="empty-state hidden">
+          <div style="font-size:32px; margin-bottom:10px;">📋</div>
+          <div>No blueprints exist. Click "+ Create New Role" in the sidebar to define hiring criteria.</div>
+        </div>
+      </div>
+
+      <div class="page" id="page-create-bp">
+        <div class="card" style="max-width: 640px;">
+          <div class="card-title" style="font-family:var(--font-sans); font-weight:800; font-size:24px;">Create Role
+            Blueprint</div>
+          <div class="card-sub">Define the specific parameters Gemini AI will use to evaluate candidate resumes.</div>
+
+          <div class="form-row">
+            <div class="form-field"><label class="form-label">Role Title*</label><input class="form-input"
+                id="cbp-title" placeholder="e.g., Data Scientist"></div>
+            <div class="form-field"><label class="form-label">Department</label><input class="form-input" id="cbp-dept"
+                placeholder="e.g., Engineering"></div>
+          </div>
+          <div class="form-field"><label class="form-label">Required Experience</label><input class="form-input"
+              id="cbp-exp" placeholder="e.g., 3+ Years in Python/SQL"></div>
+          <div class="form-field">
+            <label class="form-label">Core Skills & Qualifications (Comma separated)*</label>
+            <textarea class="form-input" id="cbp-skills" rows="3"
+              placeholder="Machine Learning, Python, Statistical Modeling, TensorFlow"></textarea>
+          </div>
+          <div class="form-field" style="max-width: 200px;">
+            <label class="form-label">Passing Threshold (0-100)*</label>
+            <input class="form-input" id="cbp-score" type="number" placeholder="75">
+          </div>
+
+          <button class="btn-primary accent" id="btn-save-bp" style="margin-top: 24px;">Save Blueprint to
+            Database</button>
+        </div>
+      </div>
+
+      <div class="page" id="page-results">
+        <div class="card">
+          <table style="width:100%; border-collapse: collapse; text-align:left;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--ink); background: var(--bg);">
+                <th
+                  style="padding:16px; font-family:var(--font-mono); font-size:11px; text-transform:uppercase; font-weight:600; color:var(--ink);">
+                  Applicant Name</th>
+                <th
+                  style="padding:16px; font-family:var(--font-mono); font-size:11px; text-transform:uppercase; font-weight:600; color:var(--ink);">
+                  Role Applied</th>
+                <th
+                  style="padding:16px; font-family:var(--font-mono); font-size:11px; text-transform:uppercase; font-weight:600; color:var(--ink);">
+                  AI Score & Rank</th>
+                <th
+                  style="padding:16px; font-family:var(--font-mono); font-size:11px; text-transform:uppercase; font-weight:600; color:var(--ink);">
+                  Final Decision</th>
+              </tr>
+            </thead>
+            <tbody id="results-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <div id="applicant-app" class="hidden" style="background:var(--bg); min-height:100vh;">
+    <div class="applicant-topbar">
+      <div style="display:flex; align-items:center; gap:40px;">
+        <div class="apl-brand"
+          style="font-family:var(--font-sans); font-weight:800; font-size:20px; text-transform:uppercase; letter-spacing:-0.05em; color:var(--ink);">
+          northstar<span style="color:var(--accent-blue)">·</span></div>
+        <div class="applicant-nav">
+          <div class="ap-nav-link active" onclick="switchApTab('profile')">My Dashboard</div>
+          <div class="ap-nav-link" onclick="switchApTab('jobs')">Jobs</div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap: 20px;">
+        <div style="text-align:right;">
+          <div id="ap-topbar-name" style="font-weight:700; font-size:13px;"></div>
+          <div style="font-family:var(--font-mono); font-size:10px; color:var(--ink3); text-transform:uppercase;">
+            Candidate View</div>
+        </div>
+        <button class="btn-nav-outline" id="btn-applicant-logout">⌂ Home</button>
+      </div>
+    </div>
+
+    <div class="applicant-content">
+
+      <div id="ap-tab-profile">
+        <div style="display: grid; grid-template-columns: 350px 1fr; gap: 32px; align-items: start;">
+
+          <div class="card" style="margin: 0; padding: 32px; border:1px solid var(--ink);">
+            <div
+              style="font-family:var(--font-sans); font-weight:800; font-size:24px; text-transform:uppercase; margin-bottom:24px; border-bottom:1px solid var(--ink); padding-bottom:16px;">
+              Master Profile</div>
+
+            <div class="form-field">
+              <label class="form-label">Education*</label>
+              <input class="form-input" id="ap-prof-edu" placeholder="Highest Degree / University">
+            </div>
+            <div class="form-field">
+              <label class="form-label">Experience*</label>
+              <textarea class="form-input" id="ap-prof-exp" rows="3"
+                placeholder="Job titles, companies, years..."></textarea>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Achievements</label>
+              <textarea class="form-input" id="ap-prof-ach" rows="2"
+                placeholder="Awards, Certifications, Hackathons..."></textarea>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Other / Skills*</label>
+              <input class="form-input" id="ap-prof-skills" placeholder="Python, React, Leadership...">
+            </div>
+
+            <div style="margin-top:24px; padding-top:24px; border-top:1px solid var(--border-dark);">
+              <label class="form-label" style="margin-bottom:12px;">Master Resume (.TXT)</label>
+              <div class="drop-zone" id="master-resume-drop-zone"
+                style="padding:20px 10px; margin-bottom:12px; border-color:var(--ink);">
+                <div class="drop-icon" style="font-size:24px; margin-bottom:4px; color:var(--ink);">📄</div>
+                <div class="drop-text" style="font-size:12px; font-family:var(--font-mono); text-transform:uppercase;"
+                  id="master-drop-text-label">Drag & Drop Resume</div>
+                <input type="file" id="ap-master-resume-file" accept=".txt" style="display:none;">
+              </div>
+              <textarea class="form-input hidden" id="ap-master-resume"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-top: 24px;">
+              <button class="btn-nav-outline" id="btn-reset-master-profile"
+                style="width: 30%; justify-content: center; color: var(--fail); border-color: rgba(220, 38, 38, 0.3);">Clear</button>
+              <button class="btn-primary blue" id="btn-save-master-profile" style="flex: 1;">Save Profile Data</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="card"
+              style="padding: 24px; margin-bottom: 24px; border:1px solid var(--border-dark); background:var(--surface);">
+              <div
+                style="font-family:var(--font-mono); font-size:10px; font-weight:700; color:var(--ink); text-transform:uppercase; margin-bottom:16px;">
+                Application Flow</div>
+              <div style="display:flex; justify-content:space-between; align-items:center; text-align:center;">
+                <div style="border:1px solid var(--border-dark); padding:16px; border-radius:var(--radius); flex:1;">
+                  <div style="font-weight:700; font-family:var(--font-sans); text-transform:uppercase;">1. Applied</div>
+                  <div style="font-family:var(--font-mono); font-size:10px; color:var(--ink3); margin-top:4px;">Resume
+                    Submitted</div>
+                </div>
+                <div style="padding:0 16px; font-weight:800;">→</div>
+                <div
+                  style="border:1px solid var(--ink); background:var(--bg); padding:16px; border-radius:var(--radius); flex:1.2; ">
+                  <div
+                    style="font-weight:800; font-family:var(--font-sans); text-transform:uppercase; color:var(--ink);">
+                    2. AI Scoring</div>
+                  <div style="font-family:var(--font-mono); font-size:10px; color:var(--ink2); margin-top:4px;">Company
+                    Reviews</div>
+                </div>
+                <div style="padding:0 16px; font-weight:800;">→</div>
+                <div style="border:1px solid var(--border-dark); padding:16px; border-radius:var(--radius); flex:1;">
+                  <div style="font-weight:700; font-family:var(--font-sans); text-transform:uppercase;">3. Feedback
+                  </div>
+                  <div style="font-family:var(--font-mono); font-size:10px; color:var(--ink3); margin-top:4px;">Receive
+                    Decision</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-grid" style="margin-bottom:24px;">
+              <div class="stat-box">
+                <div class="lbl">Applications</div>
+                <div class="num" id="ap-stat-applied">0</div>
+              </div>
+              <div class="stat-box" style="border-color:var(--pass);">
+                <div class="lbl" style="color:var(--pass)">Offers</div>
+                <div class="num" id="ap-stat-selected" style="color:var(--pass)">0</div>
+              </div>
+              <div class="stat-box">
+                <div class="lbl">Pending Review</div>
+                <div class="num" id="ap-stat-rejected">0</div>
+              </div>
+            </div>
+
+            <div class="card" style="margin:0; padding:24px;">
+              <div class="card-title"
+                style="font-family:var(--font-sans); font-weight:800; font-size:20px; text-transform:uppercase; margin-bottom: 20px;">
+                My Applications & Feedback</div>
+              <div id="ap-history-list" class="empty-state" style="padding:40px 20px;">
+                You haven't applied to any roles yet.<br>Click "Jobs" above to find open positions.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div id="ap-tab-jobs" class="hidden">
+        <div
+          style="font-family:var(--font-mono); font-size:11px; font-weight:600; text-transform:uppercase; color:var(--ink); margin-bottom:8px;">
+          Open Positions</div>
+        <h2
+          style="font-family:var(--font-sans); font-weight:800; font-size:48px; text-transform:uppercase; line-height:1; margin-bottom:40px; letter-spacing:-0.02em;">
+          Job Board</h2>
+
+        <div id="ap-role-list"></div>
+        <div id="ap-role-empty" class="empty-state hidden">No companies are currently hiring.</div>
+
+        <div id="quick-predict-result"
+          style="display:none; margin-top:24px; padding:24px; background:var(--bg); border:1px solid var(--ink); border-radius:var(--radius-lg); ">
+          <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+            <div
+              style="font-family:var(--font-mono); font-weight:700; font-size:11px; color:var(--ink); text-transform:uppercase;">
+              AI Match Prediction</div>
+            <button onclick="document.getElementById('quick-predict-result').style.display='none'"
+              style="background:var(--ink); color:var(--bg); border:none; border-radius:50%; width:24px; height:24px; font-weight:bold; cursor:pointer;">✕</button>
+          </div>
+          <div style="display:flex; align-items:center; gap:24px;">
+            <div
+              style="width:80px; height:80px; border-radius:50%; background:transparent; color:var(--ink); display:flex; align-items:center; justify-content:center; font-family:var(--font-sans); font-weight:800; font-size:32px; border:1px solid var(--ink);"
+              id="qp-score">--</div>
+            <div style="flex:1;">
+              <div
+                style="font-weight:800; font-family:var(--font-sans); font-size:18px; text-transform:uppercase; margin-bottom:4px;"
+                id="qp-role">Role</div>
+              <div style="font-size:14px; font-weight:500; color:var(--ink2); line-height:1.6;" id="qp-feedback">
+                Feedback goes here.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+</body>
+
+</html>

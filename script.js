@@ -262,6 +262,7 @@
         <div style="font-family:var(--font-mono); font-weight:700; font-size:10px; color:var(--ink); margin-bottom:4px; text-transform:uppercase;">Target Threshold</div>
         <div style="font-size:24px; font-weight:800; font-family:var(--font-sans);">${bp.passingScore}/100</div>
       </div>
+      <button class="btn-nav-outline" style="margin-top:16px; width:100%; justify-content:center; border-color:var(--accent2); color:var(--accent2);" onclick="deleteJob('${bp.id}')">Delete Job</button>
     </div>`).join('');
     }
 
@@ -317,7 +318,21 @@
         dbUpdate('screenings', id, { published: true }).catch(dbFail);
         renderCompanyScreenings();
         toast('Result officially published to candidate!', 'success');
+        // Auto-close the job once every application for it has been published
+        const sameJob = x => x.companyUid === sc.companyUid && (sc.blueprintId ? x.blueprintId === sc.blueprintId : x.role === sc.role);
+        const bp = state.blueprints.find(b => b.ownerUid === sc.companyUid && (sc.blueprintId ? b.id === sc.blueprintId : b.role === sc.role));
+        if (bp && state.screenings.filter(sameJob).every(x => x.published)) deleteJob(bp.id, true);
       }
+    };
+
+    window.deleteJob = function (id, auto) {
+      const bp = state.blueprints.find(b => b.id === id && b.ownerUid === state.user.uid);
+      if (!bp) return;
+      if (!auto && !confirm('Delete "' + bp.role + '"? It will be removed from the applicant job board. Existing applications are kept.')) return;
+      state.blueprints = state.blueprints.filter(b => b.id !== id);
+      renderCompanyBlueprints();
+      if (db) db.collection('blueprints').doc(id).delete().catch(dbFail);
+      toast(auto ? '"' + bp.role + '" closed automatically: all results published.' : 'Job deleted.', auto ? 'warn' : 'success');
     };
 
     function renderCompanyScreenings() {
@@ -625,6 +640,7 @@
           applicantUid: state.user.uid,
           applicantName: prof.firstName + (prof.lastName ? ' ' + prof.lastName : ''),
           companyUid: bp.ownerUid,
+          blueprintId: bp.id,
           role: bp.role,
           company: bp.company,
           score: Number(parsed.score) || 0,

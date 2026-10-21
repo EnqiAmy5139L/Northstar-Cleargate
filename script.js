@@ -35,12 +35,29 @@
     /* ══ STATE ══ */
     const state = {
       mode: null, user: null, companyProfile: null, applicantProfile: null,
-      blueprints: JSON.parse(localStorage.getItem('ns_v4_blueprints')) || [],
-      screenings: JSON.parse(localStorage.getItem('ns_v4_screenings')) || []
+      blueprints: [], screenings: []
     };
 
     const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    function saveState(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
+    let db = null, unsubs = [];
+    const dbSet = (col, id, data) => db ? db.collection(col).doc(id).set(data) : Promise.resolve();
+    const dbUpdate = (col, id, data) => db ? db.collection(col).doc(id).update(data) : Promise.resolve();
+    const dbGet = async (col, id) => db ? ((await db.collection(col).doc(id).get()).data() || null) : null;
+    const dbFail = e => toast('Database error: ' + e.message, 'error');
+    /* Live sync: role blueprints (all) + this user's screenings from Firestore */
+    function startSync() {
+      unsubs.forEach(u => u()); unsubs = [];
+      if (!db) return;
+      const uid = state.user.uid, co = state.mode === 'company';
+      unsubs.push(db.collection('blueprints').onSnapshot(s => {
+        state.blueprints = s.docs.map(d => d.data()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        co ? renderCompanyBlueprints() : renderApplicantJobs();
+      }, dbFail));
+      unsubs.push(db.collection('screenings').where(co ? 'companyUid' : 'applicantUid', '==', uid).onSnapshot(s => {
+        state.screenings = s.docs.map(d => d.data()).sort((a, b) => new Date(b.date) - new Date(a.date));
+        co ? renderCompanyScreenings() : updateApplicantStats();
+      }, dbFail));
+    }
     function toast(msg, type = 'success') {
       const t = document.createElement('div');
       t.className = `toast ${type}`;
@@ -50,7 +67,7 @@
     }
 
     let firebaseReady = false, auth = null;
-    try { firebase.initializeApp(FIREBASE_CONFIG); auth = firebase.auth(); firebaseReady = true; }
+    try { firebase.initializeApp(FIREBASE_CONFIG); auth = firebase.auth(); db = firebase.firestore(); firebaseReady = true; }
     catch (e) { console.warn('Firebase error:', e.message); }
 
     const ALL_SCREENS = ['portal-chooser', 'company-auth', 'company-onboard', 'applicant-auth', 'applicant-onboard', 'company-app', 'applicant-app'];
@@ -155,18 +172,18 @@
       routeUserAfterAuth();
     }
 
-    function routeUserAfterAuth() {
+    async function routeUserAfterAuth() {
       if (state.mode === 'company') {
-        const saved = localStorage.getItem('ns_v4_co_profile_' + state.user.uid);
-        if (saved) { state.companyProfile = JSON.parse(saved); initCompanyApp(); }
+        let saved = null; try { saved = await dbGet('companies', state.user.uid); } catch (e) { return dbFail(e); }
+        if (saved) { state.companyProfile = saved; initCompanyApp(); }
         else {
           if (state.user.email) document.getElementById('co-email').value = state.user.email;
           if (state.user.displayName) document.getElementById('co-contact-name').value = state.user.displayName;
           showScreen('company-onboard');
         }
       } else {
-        const saved = localStorage.getItem('ns_v4_ap_profile_' + state.user.uid);
-        if (saved) { state.applicantProfile = JSON.parse(saved); initApplicantApp(); }
+        let saved = null; try { saved = await dbGet('applicants', state.user.uid); } catch (e) { return dbFail(e); }
+        if (saved) { state.applicantProfile = saved; initApplicantApp(); }
         else {
           if (state.user.email) document.getElementById('ap-email').value = state.user.email;
           if (state.user.displayName) {
@@ -183,7 +200,7 @@
       const name = document.getElementById('co-company-name').value;
       if (!name) return toast('Company name required', 'error');
       state.companyProfile = { companyName: name, email: document.getElementById('co-email').value };
-      saveState('ns_v4_co_profile_' + state.user.uid, state.companyProfile);
+      dbSet('companies', state.user.uid, state.companyProfile).catch(dbFail);
       initCompanyApp();
     });
 
@@ -191,7 +208,7 @@
       const fname = document.getElementById('ap-fname').value;
       if (!fname) return toast('First name required', 'error');
       state.applicantProfile = { firstName: fname, lastName: document.getElementById('ap-lname').value, email: document.getElementById('ap-email').value, resume: '', education: '', experience: '', achievements: '', skills: '' };
-      saveState('ns_v4_ap_profile_' + state.user.uid, state.applicantProfile);
+      dbSet('applicants', state.user.uid, state.applicantProfile).catch(dbFail);
       initApplicantApp();
     });
 
@@ -209,7 +226,7 @@
 
     function initCompanyApp() {
       toast('Admin authenticated successfully.', 'success');
-      showScreen('company-app');
+      showScreen('company-app'); startSync();
       document.getElementById('sidebar-co-name').textContent = state.companyProfile.companyName;
       document.querySelectorAll('.sidebar .nav-item[data-page]').forEach(n => { n.addEventListener('click', () => showPage(n.dataset.page)); });
       renderCompanyBlueprints(); renderCompanyScreenings(); showPage('dashboard');
@@ -220,9 +237,9 @@
       const score = document.getElementById('cbp-score').value;
       if (!title || !score) return toast('Title and Threshold Score are required', 'error');
 
-      const bp = { id: 'bp_' + Date.now(), ownerUid: state.user.uid, company: state.companyProfile.companyName, role: title, department: document.getElementById('cbp-dept').value, experience: document.getElementById('cbp-exp').value, skills: document.getElementById('cbp-skills').value, passingScore: parseInt(score) };
+      const bp = { id: 'bp_' + Date.now(), ownerUid: state.user.uid, company: state.companyProfile.companyName, role: title, department: document.getElementById('cbp-dept').value, experience: document.getElementById('cbp-exp').value, skills: document.getElementById('cbp-skills').value, passingScore: parseInt(score), createdAt: Date.now() };
 
-      state.blueprints.unshift(bp); saveState('ns_v4_blueprints', state.blueprints); toast('Role Blueprint saved to database.', 'success');
+      state.blueprints.unshift(bp); dbSet('blueprints', bp.id, bp).catch(dbFail); toast('Role Blueprint saved to database.', 'success');
       document.getElementById('cbp-title').value = ''; document.getElementById('cbp-skills').value = ''; showPage('blueprints'); renderCompanyBlueprints();
     });
 
@@ -248,7 +265,7 @@
     </div>`).join('');
     }
 
-    const BACKEND_URL = window.NORTHSTAR_API_URL || "https://northstar-backend-x37z.onrender.com";
+    const BACKEND_URL = window.NORTHSTAR_API_URL || "https://northstar-backend-j6ye.onrender.com/api/evaluate";
 
     async function callGemini(promptText, retries = 3) {
       const thinkingText = document.getElementById('thinking-text');
@@ -286,7 +303,7 @@
       const sc = state.screenings.find(s => s.id === id);
       if (sc) {
         sc.finalDecision = decision;
-        saveState('ns_v4_screenings', state.screenings);
+        dbUpdate('screenings', id, { finalDecision: decision }).catch(dbFail);
         renderCompanyScreenings();
       }
     };
@@ -297,7 +314,7 @@
       if (sc) {
         if (sc.finalDecision === 'PENDING') return toast('You must select Hire or Reject first.', 'warn');
         sc.published = true;
-        saveState('ns_v4_screenings', state.screenings);
+        dbUpdate('screenings', id, { published: true }).catch(dbFail);
         renderCompanyScreenings();
         toast('Result officially published to candidate!', 'success');
       }
@@ -395,7 +412,7 @@
 
     function initApplicantApp() {
       toast('Session authenticated.', 'success');
-      showScreen('applicant-app');
+      showScreen('applicant-app'); startSync();
       const prof = state.applicantProfile;
 
       // Pre-fill Profile Form
@@ -426,7 +443,7 @@
       state.applicantProfile.skills = skills;
       state.applicantProfile.resume = document.getElementById('ap-master-resume').value.trim();
 
-      saveState('ns_v4_ap_profile_' + state.user.uid, state.applicantProfile);
+      dbSet('applicants', state.user.uid, state.applicantProfile).catch(dbFail);
       toast('Profile data locked successfully.', 'success');
     });
 
@@ -446,7 +463,7 @@
       state.applicantProfile.skills = '';
       state.applicantProfile.resume = '';
 
-      saveState('ns_v4_ap_profile_' + state.user.uid, state.applicantProfile);
+      dbSet('applicants', state.user.uid, state.applicantProfile).catch(dbFail);
       toast('Profile data cleared.', 'warn');
     });
 
@@ -610,8 +627,8 @@
           companyUid: bp.ownerUid,
           role: bp.role,
           company: bp.company,
-          score: parsed.score,
-          status: parsed.status,
+          score: Number(parsed.score) || 0,
+          status: parsed.status === 'PASS' ? 'PASS' : 'FAIL',
           aiReason: parsed.aiReason || "Profile evaluated by AI.",
           finalDecision: 'PENDING',
           published: false,
@@ -619,7 +636,7 @@
         };
 
         state.screenings.unshift(app);
-        saveState('ns_v4_screenings', state.screenings);
+        await dbSet('screenings', app.id, app).catch(dbFail);
 
         toast('Application sent securely to HR.');
         updateApplicantStats();
@@ -634,7 +651,7 @@
     }
 
     /* Global Navigation */
-    document.getElementById('btn-company-logout').onclick = () => { state.user = null; location.reload(); };
-    document.getElementById('btn-applicant-logout').onclick = () => { state.user = null; location.reload(); };
+    document.getElementById('btn-company-logout').onclick = () => { unsubs.forEach(u => u()); (auth ? auth.signOut() : Promise.resolve()).finally(() => location.reload()); };
+    document.getElementById('btn-applicant-logout').onclick = () => { unsubs.forEach(u => u()); (auth ? auth.signOut() : Promise.resolve()).finally(() => location.reload()); };
 
   

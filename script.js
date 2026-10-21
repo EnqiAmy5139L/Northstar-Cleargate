@@ -280,10 +280,17 @@
           body: JSON.stringify({ prompt: promptText })
         });
 
+        if (res.status === 429) {
+          const d = await res.json().catch(() => ({}));
+          const e = new Error(d.error || "Too many requests. Please try again shortly.");
+          e.noRetry = true;
+          throw e;
+        }
         if (!res.ok) throw new Error("Server not ready yet.");
         const data = await res.json();
         return data.aiResponse;
       } catch (error) {
+        if (error.noRetry) throw error;
         if (retries > 0) {
           if (thinkingText) thinkingText.innerText = "Server is booting. Waiting 10 seconds...";
           await new Promise(r => setTimeout(r, 10000));
